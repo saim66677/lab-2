@@ -1,0 +1,126 @@
+from google.colab import drive
+
+
+drive.mount('/content/drive')
+
+
+
+
+
+import pandas as pd
+
+
+import numpy as np
+
+
+from sklearn.model_selection import train_test_split
+
+
+from sklearn.linear_model import LinearRegression
+
+
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
+
+
+
+
+
+df = pd.read_csv('/content/drive/MyDrive/diabetes.csv')
+ 
+features_to_fix = ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']
+
+
+df_cleaned = df.copy()
+
+
+
+
+
+df_cleaned[features_to_fix] = df_cleaned[features_to_fix].astype(float)
+
+
+
+
+
+for feature in features_to_fix:
+
+
+mean_val = df_cleaned[df_cleaned[feature] != 0][feature].mean()
+
+
+df_cleaned.loc[df_cleaned[feature] == 0, feature] = mean_val
+
+
+
+
+
+df_cleaned.loc[0, 'Glucose'] = df_cleaned['Glucose'].max()
+
+
+min_age = df_cleaned['Age'].min()
+
+
+min_glucose = df_cleaned['Glucose'].min()
+
+
+df_cleaned.loc[df_cleaned['Age'] == min_age, 'Glucose'] = min_glucose
+ 
+X = df_cleaned.drop('Outcome', axis=1)
+
+
+y = df_cleaned['Outcome']
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+
+
+
+model = LinearRegression()
+
+
+model.fit(X_train, y_train)
+
+
+y_pred_continuous = model.predict(X_test)
+
+
+y_pred = np.round(y_pred_continuous).astype(int)
+
+
+
+
+
+accuracy = accuracy_score(y_test, y_pred)
+
+
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+
+precision = precision_score(y_test, y_pred)
+
+
+recall = recall_score(y_test, y_pred)
+
+
+f1 = f1_score(y_test, y_pred)
+ 
+
+
+print(f"Accuracy: {accuracy*100:.2f}%")
+
+
+print("Confusion Matrix:")
+
+
+print(conf_matrix)
+
+
+print(f"Precision: {precision:.3f}")
+
+
+print(f"Recall: {recall:.3f}")
+
+
+print(f"F1 Score: {f1:.3f}")
