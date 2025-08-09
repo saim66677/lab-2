@@ -1,0 +1,149 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+file_path = '/content/drive/My Drive/english_news_200.txt'
+
+
+with open(file_path, 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+
+
+data = [line.strip().split(" || ") for line in lines]
+labels = [item[0] for item in data]
+texts = [item[1] for item in data]
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+
+
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(texts).toarray()
+y = labels
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, 
+random_state=42)
+
+
+
+
+import numpy as np
+from collections import Counter
+
+
+def cosine_distance(x1, x2):
+    if np.linalg.norm(x1) == 0 or np.linalg.norm(x2) == 0:
+        return 1.0
+    return 1 - np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
+
+
+def knn_predict(X_train, y_train, X_test, k):
+    predictions = []
+    for test_point in X_test:
+        distances = [cosine_distance(test_point, x) for x in X_train]
+        k_indices = np.argsort(distances)[:k]
+        k_nearest_labels = [y_train[i] for i in k_indices]
+        most_common = Counter(k_nearest_labels).most_common(1)[0][0]
+        predictions.append(most_common)
+    return predictions
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+import numpy as np
+
+
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2) ** 2))
+
+
+class CustomKNN:
+    def __init__(self, k=3):
+        self.k = k
+
+
+    def fit(self, X, y):
+        self.X_train = X
+        self.y_train = y
+
+
+    def predict_one(self, x):
+        distances = [euclidean_distance(x, x_train) for x_train in self.X_train]
+        k_indices = np.argsort(distances)[:self.k]
+        k_nearest_labels = [self.y_train[i] for i in k_indices]
+        return max(set(k_nearest_labels), key=k_nearest_labels.count)
+
+
+    def predict(self, X):
+        return [self.predict_one(x) for x in X]
+
+
+# Load iris dataset
+iris = load_iris()
+X_iris = iris.data
+y_iris = iris.target
+
+
+# Split
+X_train_iris, X_test_iris, y_train_iris, y_test_iris = train_test_split(X_iris, y_iris, test_size=0.2, random_state=42)
+
+
+# Train and predict
+knn_iris = CustomKNN(k=3)
+knn_iris.fit(X_train_iris, y_train_iris)
+y_pred_iris = knn_iris.predict(X_test_iris)
+
+def accuracy(y_true, y_pred):
+    return np.mean(np.array(y_true) == np.array(y_pred))
+
+
+def find_best_k(X, y, distance_type="euclidean"):
+    from sklearn.model_selection import train_test_split
+    best_k = 1
+    best_score = 0
+    best_split = 0.2
+
+
+    for split in [0.2, 0.3, 0.4]:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=split, random_state=42)
+
+
+        for k in range(1, min(21, len(X_train))):
+            model = CustomKNN(k=k)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            acc = accuracy(y_test, y_pred)
+
+
+            if acc > best_score:
+                best_score = acc
+                best_k = k
+                best_split = split
+
+
+    return best_k, best_split, best_score
+
+
+# Iris best k
+best_k_iris, best_split_iris, best_score_iris = find_best_k(X_iris, y_iris)
+print("Iris - Best K:", best_k_iris, "Best Split:", best_split_iris, "Accuracy:", best_score_iris)
+
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report
+
+
+# Sklearn KNN on Iris
+X_train_sklearn, X_test_sklearn, y_train_sklearn, y_test_sklearn = train_test_split(X_iris, y_iris, test_size=best_split_iris, random_state=42)
+sk_model = KNeighborsClassifier(n_neighbors=best_k_iris)
+sk_model.fit(X_train_sklearn, y_train_sklearn)
+sk_pred = sk_model.predict(X_test_sklearn)
+
+
+print("Sklearn KNN on Iris:\n", classification_report(y_test_sklearn, sk_pred))
+
+
+print("\n--- Final Comparison Summary ---")
+print(f"Iris Dataset - Custom KNN: Accuracy={best_score_iris}, k={best_k_iris}, Split={best_split_iris}")
+print("Iris Dataset - Sklearn KNN:", accuracy(y_test_sklearn, sk_pred))
